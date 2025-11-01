@@ -58,13 +58,42 @@ if submitted:
             'vehicle': vehicle
         }
 
+                # FIXED: Robust encoding with error handling
         data = {
             'Customer Lifetime Value': clv,
             'Monthly Premium Auto': premium,
             'Months_Since_Start': months,
-            'Premium_Policy': 1 if form_vars['coverage'] == 'Premium' else 0,
-            'Luxury_Vehicle': 1 if 'Luxury' in form_vars['vehicle'] else 0
+            'Premium_Policy': 1 if coverage == 'Premium' else 0,
+            'Luxury_Vehicle': 1 if 'Luxury' in vehicle else 0
         }
+        
+        # FIXED LOOP: Use a dict for safe lookup + better error handling
+        col_vars = {
+            'Sales Channel': channel,
+            'Renew Offer Type': offer,
+            'Education': education,
+            'EmploymentStatus': employment,
+            'Gender': gender,
+            'Location Code': location
+        }
+        
+        for col, val in col_vars.items():
+            le = encoders[col]
+            try:
+                data[col] = le.transform([val])[0]
+                print(f"Encoded {col} '{val}' → {data[col]}")  # Debug log (remove in prod)
+            except ValueError:
+                # Find closest match or fallback
+                closest_idx = 0
+                for i, cls in enumerate(le.classes_):
+                    if val.lower() in cls.lower():
+                        closest_idx = i
+                        break
+                data[col] = closest_idx
+                print(f"Fallback: {col} '{val}' → {closest_idx} (closest: {le.classes_[closest_idx]})")  # Debug
+
+        X = pd.DataFrame([data])[features]
+        prob = model.predict_proba(X)[0, 1]
         
         # FIXED: Safe encoding with dict lookup
         for col in ['Sales Channel', 'Renew Offer Type', 'Education', 'EmploymentStatus', 'Gender', 'Location Code']:
