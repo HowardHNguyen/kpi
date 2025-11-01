@@ -40,22 +40,40 @@ with st.form("lead_form"):
         coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
         vehicle = st.text_input("Vehicle Class", "Two-Door Car")
 
-    submitted = st.form_submit_button("Score Lead")
+    submitted = st.form_submit_button("SCORE LEAD")
 
 # Predict
 if submitted:
     with st.spinner("Scoring..."):
+        # FIXED: Use dict to capture all form variables safely
+        form_vars = {
+            'channel': channel,
+            'offer': offer,
+            'education': education,
+            'employment': employment,
+            'gender': gender,
+            'location': location,
+            'coverage': coverage,
+            'vehicle': vehicle
+        }
+
         data = {
             'Customer Lifetime Value': clv,
             'Monthly Premium Auto': premium,
             'Months_Since_Start': months,
-            'Premium_Policy': 1 if coverage == 'Premium' else 0,
-            'Luxury_Vehicle': 1 if 'Luxury' in vehicle else 0
+            'Premium_Policy': 1 if form_vars['coverage'] == 'Premium' else 0,
+            'Luxury_Vehicle': 1 if 'Luxury' in form_vars['vehicle'] else 0
         }
+        
+        # FIXED: Safe encoding with dict lookup
         for col in ['Sales Channel', 'Renew Offer Type', 'Education', 'EmploymentStatus', 'Gender', 'Location Code']:
             le = encoders[col]
-            val = locals()[col.lower().replace(' ', '_')]
-            data[col] = le.transform([val])[0] if val in le.classes_ else 0
+            var_key = col.lower().replace(' ', '_')  # e.g., 'location_code' → 'location'
+            val = form_vars.get(var_key, '')  # Safe lookup
+            try:
+                data[col] = le.transform([val])[0]
+            except ValueError:
+                data[col] = 0  # Fallback for unseen values
 
         X = pd.DataFrame([data])[features]
         prob = model.predict_proba(X)[0, 1]
@@ -69,8 +87,8 @@ if submitted:
                 predict_fn = lambda x: model.predict_proba(x)[:, 1]
                 explainer = shap.Explainer(predict_fn, X, feature_names=features)
                 shap_values = explainer(X)
-                fig, ax = plt.subplots()
-                shap.waterfall_plot(shap_values[0], max_display=10, show=False)
+                fig, ax = plt.subplots(figsize=(10, 6))
+                shap.plots.waterfall(shap_values[0], max_display=10)
                 st.pyplot(fig)
-            except:
-                st.info("SHAP explanation skipped")
+            except Exception as e:
+                st.info(f"SHAP explanation skipped: {str(e)}")
