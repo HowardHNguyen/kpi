@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Insurance Propensity Scorer", layout="wide")
 st.title("Propensity-to-Buy Scorer")
-st.markdown("### Enter lead details → Get **real-time** conversion probability + **SHAP explanation**")
+st.markdown("### Real-time** conversion probability + **SHAP explanation** - by Howard Nguyen")
 
 # Load artifacts
 @st.cache_resource
@@ -80,6 +80,25 @@ if submitted:
 
         st.success(f"**Propensity Score: {prob:.1%}**")
         st.metric("Recommended Action", "Route to Agent" if prob > 0.7 else "Web Funnel")
+
+        # === SMART DYNAMIC MESSAGE ===
+        st.markdown("---")
+        if prob > 0.7:
+            msg = f"""
+            <div style='background-color: #e6f7e6; padding: 15px; border-radius: 10px; font-size: 15px; line-height: 1.6;'>
+            <strong>High-value lead: {prob:.1%} conversion probability</strong><br>
+            <strong>Recommended Action:</strong> <strong>Route to Agent</strong> — maximize lifetime value.
+            </div>
+            """
+        else:
+            msg = f"""
+            <div style='background-color: #f0f2f6; padding: 15px; border-radius: 10px; font-size: 15px; line-height: 1.6;'>
+            <strong>Only {prob:.1f}% chance this lead will convert</strong> — too low for agent routing.<br>
+            <strong>Recommended Action:</strong> Send to <strong>Web Funnel</strong> (automated emails, retargeting).
+            </div>
+            """
+        st.markdown(msg, unsafe_allow_html=True)
+        st.markdown("---")
 
         # SHAP
         with st.spinner("Generating explanation..."):
