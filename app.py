@@ -23,24 +23,24 @@ def load_artifacts():
 model, encoders, features = load_artifacts()
 
 # ----------------------------------------------------------------------
-# HIGH-IMPACT DICTIONARY (Added for auto-fill)
+# HIGH-IMPACT DICTIONARY (Auto-fill 90%+ lead)
 # ----------------------------------------------------------------------
 HIGH_IMPACT = {
-    "Customer Lifetime Value": 15000,      # >$12k = top 10%
-    "Monthly Premium Auto": 200,           # >$150 = high intent
-    "Months_Since_Start": 6,               # Recent = warm
-    "Sales Channel": "Agent",              # 19.2% conv
-    "Renew Offer Type": "Offer2",          # +42% lift
-    "Education": "Doctor",                 # High income
-    "EmploymentStatus": "Retired",         # 72% conv
-    "Gender": "F",                         # Slight edge
-    "Location Code": "Suburban",           # +20% lift
-    "Coverage": "Premium",                 # High CLV
-    "Vehicle Class": "Luxury SUV"          # Top converter
+    "Customer Lifetime Value": 15000,
+    "Monthly Premium Auto": 200,
+    "Months_Since_Start": 6,
+    "Sales Channel": "Agent",
+    "Renew Offer Type": "Offer2",
+    "Education": "Doctor",
+    "EmploymentStatus": "Retired",
+    "Gender": "F",
+    "Location Code": "Suburban",
+    "Coverage": "Premium",
+    "Vehicle Class": "Luxury SUV"
 }
 
 # ----------------------------------------------------------------------
-# UI – form (With Vehicle selectbox)
+# UI – form with selectbox for Vehicle Class
 # ----------------------------------------------------------------------
 with st.form("lead_form"):
     col1, col2 = st.columns(2)
@@ -77,7 +77,7 @@ with st.form("lead_form"):
     with col4:
         coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
         
-        # === VEHICLE SELECTBOX ===
+        # === VEHICLE SELECTBOX (from dataset) ===
         vehicle_options = [
             "Luxury SUV",
             "Luxury Car",
@@ -90,22 +90,39 @@ with st.form("lead_form"):
 
     submitted = st.form_submit_button("SCORE LEAD")
 
-# === AUTO-FILL 90%+ LEAD BUTTON ===
+# === AUTO-FILL 90%+ LEAD BUTTON (FIXED: uses st.rerun()) ===
 if st.button("Load 90%+ High-Conversion Lead", type="primary"):
-    clv = HIGH_IMPACT["Customer Lifetime Value"]
-    premium = HIGH_IMPACT["Monthly Premium Auto"]
-    months = HIGH_IMPACT["Months_Since_Start"]
-    channel = HIGH_IMPACT["Sales Channel"]
-    offer = HIGH_IMPACT["Renew Offer Type"]
-    education = HIGH_IMPACT["Education"]
-    employment = HIGH_IMPACT["EmploymentStatus"]
-    gender = HIGH_IMPACT["Gender"]
-    location = HIGH_IMPACT["Location Code"]
-    coverage = HIGH_IMPACT["Coverage"]
-    vehicle = HIGH_IMPACT["Vehicle Class"]
-    st.experimental_rerun()
+    # Store values in session state
+    st.session_state.clv = HIGH_IMPACT["Customer Lifetime Value"]
+    st.session_state.premium = HIGH_IMPACT["Monthly Premium Auto"]
+    st.session_state.months = HIGH_IMPACT["Months_Since_Start"]
+    st.session_state.channel = HIGH_IMPACT["Sales Channel"]
+    st.session_state.offer = HIGH_IMPACT["Renew Offer Type"]
+    st.session_state.education = HIGH_IMPACT["Education"]
+    st.session_state.employment = HIGH_IMPACT["EmploymentStatus"]
+    st.session_state.gender = HIGH_IMPACT["Gender"]
+    st.session_state.location = HIGH_IMPACT["Location Code"]
+    st.session_state.coverage = HIGH_IMPACT["Coverage"]
+    st.session_state.vehicle = HIGH_IMPACT["Vehicle Class"]
+    st.rerun()  # ← FIXED: st.rerun() instead of experimental_rerun
 
-# Predict
+# === Auto-load from session state (after button) ===
+if 'clv' in st.session_state:
+    clv = st.session_state.clv
+    premium = st.session_state.premium
+    months = st.session_state.months
+    channel = st.session_state.channel
+    offer = st.session_state.offer
+    education = st.session_state.education
+    employment = st.session_state.employment
+    gender = st.session_state.gender
+    location = st.session_state.location
+    coverage = st.session_state.coverage
+    vehicle = st.session_state.vehicle
+
+# ----------------------------------------------------------------------
+# Predict (only when form is submitted)
+# ----------------------------------------------------------------------
 if submitted:
     with st.spinner("Scoring..."):
         # ---- 1. numeric / engineered features -------------------------
@@ -132,7 +149,7 @@ if submitted:
             le = encoders[col]
             try:
                 encoded_val = le.transform([val])[0]
-            except ValueError:  # unseen category → fallback to first class
+            except ValueError:
                 encoded_val = 0
             data[col] = encoded_val
             encoded_debug[col] = (val, encoded_val)
@@ -174,14 +191,13 @@ if submitted:
         # ---- 7. SHAP waterfall ----------------------------------------
         with st.spinner("Generating SHAP explanation…"):
             try:
-                # model-agnostic explainer works with any tree model
                 explainer = shap.Explainer(
                     lambda x: model.predict_proba(x)[:, 1], X, feature_names=features
                 )
                 shap_values = explainer(X)
 
                 fig, ax = plt.subplots(figsize=(10, 6))
-                shap.plots.waterfall(shap_values[0], max_display=12)
+                shap.plots.waterfall(shap_values[0], max_display=12, show=False)
                 st.pyplot(fig)
             except Exception as e:
                 st.info(f"SHAP plot skipped: {e}")
