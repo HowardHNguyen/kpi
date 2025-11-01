@@ -78,8 +78,9 @@ if submitted:
             "Customer Lifetime Value": clv,
             "Monthly Premium Auto": premium,
             "Months_Since_Start": months,
-            "Premium_Policy": 1 if coverage == "Premium" else 0,
+            "Premium_Policy": 0 if coverage == "Premium" else 1,  # FIXED
             "Luxury_Vehicle": 1 if "Luxury" in vehicle else 0,
+            "Coverage": coverage  # ← Add this for SHAP
         }
 
         # ---- 2. categorical encoding (ONE LOOP ONLY) -----------------
