@@ -7,12 +7,8 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Insurance Propensity Scorer", layout="wide")
 st.title("Propensity-to-Buy Scorer")
-st.markdown(
-    "### Real-time* conversion probability + SHAP explanation – by **Howard Nguyen, PhD**"
-)
-st.caption(
-    "From the article: *[Data-Driven Marketing KPIs: Turning Insurance Leads into Lifetime Profit]*"
-)
+st.markdown("### Real-time* conversion probability + SHAP explanation – by **Howard Nguyen, PhD**")
+st.caption("From the article: *[Data-Driven Marketing KPIs: Turning Insurance Leads into Lifetime Profit]*")
 
 # ----------------------------------------------------------------------
 # Load model, encoders and feature list
@@ -24,11 +20,27 @@ def load_artifacts():
     features = joblib.load("feature_names.pkl")
     return model, encoders, features
 
-
 model, encoders, features = load_artifacts()
 
 # ----------------------------------------------------------------------
-# UI – form
+# HIGH-IMPACT DICTIONARY (Added for auto-fill)
+# ----------------------------------------------------------------------
+HIGH_IMPACT = {
+    "Customer Lifetime Value": 15000,      # >$12k = top 10%
+    "Monthly Premium Auto": 200,           # >$150 = high intent
+    "Months_Since_Start": 6,               # Recent = warm
+    "Sales Channel": "Agent",              # 19.2% conv
+    "Renew Offer Type": "Offer2",          # +42% lift
+    "Education": "Doctor",                 # High income
+    "EmploymentStatus": "Retired",         # 72% conv
+    "Gender": "F",                         # Slight edge
+    "Location Code": "Suburban",           # +20% lift
+    "Coverage": "Premium",                 # High CLV
+    "Vehicle Class": "Luxury SUV"          # Top converter
+}
+
+# ----------------------------------------------------------------------
+# UI – form (With Vehicle selectbox)
 # ----------------------------------------------------------------------
 with st.form("lead_form"):
     col1, col2 = st.columns(2)
@@ -65,7 +77,7 @@ with st.form("lead_form"):
     with col4:
         coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
         
-        # === REPLACE TEXT INPUT WITH SELECTBOX ===
+        # === VEHICLE SELECTBOX ===
         vehicle_options = [
             "Luxury SUV",
             "Luxury Car",
@@ -78,24 +90,8 @@ with st.form("lead_form"):
 
     submitted = st.form_submit_button("SCORE LEAD")
 
-# === HIGH-CONVERSION FEATURE DICTIONARY (COPY-PASTE HERE) ===
-HIGH_IMPACT = {
-    "Customer Lifetime Value": 15000,      # >$12k = top 10%
-    "Monthly Premium Auto": 200,           # >$150 = high intent
-    "Months_Since_Start": 6,               # Recent = warm
-    "Sales Channel": "Agent",              # 19.2% conv
-    "Renew Offer Type": "Offer2",          # +42% lift
-    "Education": "Doctor",                 # High income
-    "EmploymentStatus": "Retired",         # 72% conv
-    "Gender": "F",                         # Slight edge
-    "Location Code": "Suburban",           # +20% lift
-    "Coverage": "Premium",                 # High CLV
-    "Vehicle Class": "Luxury SUV"          # Top converter
-}
-
 # === AUTO-FILL 90%+ LEAD BUTTON ===
 if st.button("Load 90%+ High-Conversion Lead", type="primary"):
-    # Auto-fill form inputs
     clv = HIGH_IMPACT["Customer Lifetime Value"]
     premium = HIGH_IMPACT["Monthly Premium Auto"]
     months = HIGH_IMPACT["Months_Since_Start"]
@@ -109,22 +105,19 @@ if st.button("Load 90%+ High-Conversion Lead", type="primary"):
     vehicle = HIGH_IMPACT["Vehicle Class"]
     st.experimental_rerun()
 
-# ----------------------------------------------------------------------
-# Prediction
-# ----------------------------------------------------------------------
+# Predict
 if submitted:
-    with st.spinner("Scoring…"):
+    with st.spinner("Scoring..."):
         # ---- 1. numeric / engineered features -------------------------
         data = {
             "Customer Lifetime Value": clv,
             "Monthly Premium Auto": premium,
             "Months_Since_Start": months,
-            "Premium_Policy": 0 if coverage == "Premium" else 1,  # FIXED
+            "Premium_Policy": 1 if coverage == "Premium" else 0,
             "Luxury_Vehicle": 1 if "Luxury" in vehicle else 0,
-            "Coverage": coverage  # ← Add this for SHAP
         }
 
-        # ---- 2. categorical encoding (ONE LOOP ONLY) -----------------
+        # ---- 2. categorical encoding ----------------------------------
         cat_mapping = {
             "Sales Channel": channel,
             "Renew Offer Type": offer,
@@ -188,7 +181,7 @@ if submitted:
                 shap_values = explainer(X)
 
                 fig, ax = plt.subplots(figsize=(10, 6))
-                shap.plots.waterfall(shap_values[0], max_display=12, show=False)
+                shap.plots.waterfall(shap_values[0], max_display=12)
                 st.pyplot(fig)
             except Exception as e:
                 st.info(f"SHAP plot skipped: {e}")
