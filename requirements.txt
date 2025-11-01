@@ -1,7 +1,7 @@
-streamlit
-xgboost
-shap
-joblib
-pandas
-matplotlib
-scikit-learn
+streamlit==1.38.0
+xgboost==2.1.1
+shap==0.46.0
+joblib==1.4.2
+pandas==2.2.2
+matplotlib==3.9.2
+scikit-learn==1.6.1  # ← Pin to training version
