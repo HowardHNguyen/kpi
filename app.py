@@ -64,9 +64,50 @@ with st.form("lead_form"):
         )
     with col4:
         coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
-        vehicle = st.text_input("Vehicle Class", "Two-Door Car")
+        
+        # === REPLACE TEXT INPUT WITH SELECTBOX ===
+        vehicle_options = [
+            "Luxury SUV",
+            "Luxury Car",
+            "Sports Car",
+            "SUV",
+            "Two-Door Car",
+            "Four-Door Car"
+        ]
+        vehicle = st.selectbox("Vehicle Class", options=vehicle_options)
 
     submitted = st.form_submit_button("SCORE LEAD")
+
+# === HIGH-CONVERSION FEATURE DICTIONARY (COPY-PASTE HERE) ===
+HIGH_IMPACT = {
+    "Customer Lifetime Value": 15000,      # >$12k = top 10%
+    "Monthly Premium Auto": 200,           # >$150 = high intent
+    "Months_Since_Start": 6,               # Recent = warm
+    "Sales Channel": "Agent",              # 19.2% conv
+    "Renew Offer Type": "Offer2",          # +42% lift
+    "Education": "Doctor",                 # High income
+    "EmploymentStatus": "Retired",         # 72% conv
+    "Gender": "F",                         # Slight edge
+    "Location Code": "Suburban",           # +20% lift
+    "Coverage": "Premium",                 # High CLV
+    "Vehicle Class": "Luxury SUV"          # Top converter
+}
+
+# === AUTO-FILL 90%+ LEAD BUTTON ===
+if st.button("Load 90%+ High-Conversion Lead", type="primary"):
+    # Auto-fill form inputs
+    clv = HIGH_IMPACT["Customer Lifetime Value"]
+    premium = HIGH_IMPACT["Monthly Premium Auto"]
+    months = HIGH_IMPACT["Months_Since_Start"]
+    channel = HIGH_IMPACT["Sales Channel"]
+    offer = HIGH_IMPACT["Renew Offer Type"]
+    education = HIGH_IMPACT["Education"]
+    employment = HIGH_IMPACT["EmploymentStatus"]
+    gender = HIGH_IMPACT["Gender"]
+    location = HIGH_IMPACT["Location Code"]
+    coverage = HIGH_IMPACT["Coverage"]
+    vehicle = HIGH_IMPACT["Vehicle Class"]
+    st.experimental_rerun()
 
 # ----------------------------------------------------------------------
 # Prediction
