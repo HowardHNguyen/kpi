@@ -8,3 +8,5 @@ joblib==1.4.2
 matplotlib==3.9.2
 fpdf2==2.7.9
 streamlit-option-menu==0.3.12
+tensorflow==2.16.1
+imbalanced-learn==0.12.0
