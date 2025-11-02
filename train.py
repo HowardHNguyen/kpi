@@ -12,16 +12,10 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv1D, MaxPooling1D, Flatten
 import joblib
 
-# -------------------------------
-# 1. Load & Prepare Data
-# -------------------------------
 print("Loading data...")
 df = pd.read_csv("data.csv")
-
-# Target
 df["Converted"] = (df["Response"] == "Yes").astype(int)
 
-# Drop
 drop_cols = ["Customer", "Effective To Date", "Response"]
 X = df.drop(columns=drop_cols + ["Converted"])
 y = df["Converted"]
@@ -29,36 +23,25 @@ y = df["Converted"]
 print(f"Dataset: {X.shape[0]} rows, {X.shape[1]} features")
 print(f"Conversion Rate: {y.mean():.2%}")
 
-# -------------------------------
-# 2. Encode
-# -------------------------------
+# Encode
 encoders = {}
 X_encoded = X.copy()
-cat_cols = X.select_dtypes(include="object").columns
-for col in cat_cols:
+for col in X.select_dtypes(include="object").columns:
     le = LabelEncoder()
     X_encoded[col] = le.fit_transform(X[col].astype(str))
     encoders[col] = le
 
-# Save at root
 joblib.dump(encoders, "label_encoders.pkl")
 joblib.dump(X_encoded.columns.tolist(), "feature_names.pkl")
 
-# -------------------------------
-# 3. Split
-# -------------------------------
-X_train, X_test, y_train, y_test = train_test_split(
-    X_encoded, y, test_size=0.2, stratify=y, random_state=42
-)
-
+# Split
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, stratify=y, random_state=42)
 X_test.to_csv("X_test.csv", index=False)
 pd.DataFrame(y_test).to_csv("y_test.csv", index=False)
 
-# -------------------------------
-# 4. Models
-# -------------------------------
+# Models
 print("Training XGBoost...")
-xgb_model = xgb.XGBClassifier(n_estimators=300, max_depth=6, learning_rate=0.1, random_state=42)
+xgb_model = xgb.XGBClassifier(n_estimators=300, max_depth=6, random_state=42)
 xgb_model.fit(X_train, y_train)
 joblib.dump(xgb_model, "xgboost_model.pkl")
 

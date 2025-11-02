@@ -35,7 +35,6 @@ df = pd.DataFrame(results).sort_values("AUC", ascending=False)
 print("\n" + "="*60)
 print(df.to_string(index=False))
 
-# Save best
 best = df.iloc[0]["Model"]
 best_model = models[best]
 if "CNN" in best:
