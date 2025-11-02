@@ -4,138 +4,133 @@ import joblib
 import pandas as pd
 import shap
 import matplotlib.pyplot as plt
-
-st.set_page_config(page_title="Insurance Propensity Scorer", layout="wide")
-st.title("Propensity-to-Buy Scorer")
-st.markdown("### Real-time* conversion probability + SHAP explanation – by **Howard Nguyen, PhD**")
-st.caption("From the article: *[Data-Driven Marketing KPIs: Turning Insurance Leads into Lifetime Profit]*")
-
-# ----------------------------------------------------------------------
-# Load model, encoders and feature list
-# ----------------------------------------------------------------------
-@st.cache_resource
-def load_artifacts():
-    model = joblib.load("propensity_model.pkl")
-    encoders = joblib.load("label_encoders.pkl")
-    features = joblib.load("feature_names.pkl")
-    return model, encoders, features
-
-model, encoders, features = load_artifacts()
+from fpdf2 import FPDF
+import base64
+from streamlit_option_menu import option_menu
+import os
 
 # ----------------------------------------------------------------------
-# HIGH-IMPACT DICTIONARY (Auto-fill 90%+ lead)
+# Load artifacts (they are in the same folder as app.py)
 # ----------------------------------------------------------------------
-HIGH_IMPACT = {
-    "Customer Lifetime Value": 15000,
-    "Monthly Premium Auto": 200,
-    "Months_Since_Start": 6,
-    "Sales Channel": "Agent",
-    "Renew Offer Type": "Offer2",
-    "Education": "Doctor",
-    "EmploymentStatus": "Retired",
-    "Gender": "F",
-    "Location Code": "Suburban",
-    "Coverage": "Premium",
-    "Vehicle Class": "Luxury SUV"
-}
+model = joblib.load("best_model.pkl")
+encoders = joblib.load("label_encoders.pkl")
+features = joblib.load("feature_names.pkl")
+
+st.set_page_config(page_title="Insurance KPI Dashboard", layout="wide")
 
 # ----------------------------------------------------------------------
-# UI – form with selectbox for Vehicle Class
+# Sidebar navigation
 # ----------------------------------------------------------------------
-with st.form("lead_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        clv = st.number_input(
-            "Customer Lifetime Value ($)", min_value=0.0, value=8000.0, step=100.0
-        )
-        premium = st.number_input(
-            "Monthly Premium Auto ($)", min_value=0.0, value=100.0, step=10.0
-        )
-        months = st.number_input(
-            "Months Since Policy Inception", min_value=0, value=12, step=1
-        )
-    with col2:
-        channel = st.selectbox(
-            "Sales Channel", options=encoders["Sales Channel"].classes_
-        )
-        offer = st.selectbox(
-            "Renew Offer Type", options=encoders["Renew Offer Type"].classes_
-        )
-        education = st.selectbox(
-            "Education", options=encoders["Education"].classes_
-        )
-
-    col3, col4 = st.columns(2)
-    with col3:
-        employment = st.selectbox(
-            "Employment Status", options=encoders["EmploymentStatus"].classes_
-        )
-        gender = st.selectbox("Gender", options=encoders["Gender"].classes_)
-        location = st.selectbox(
-            "Location Code", options=encoders["Location Code"].classes_
-        )
-    with col4:
-        coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
-        
-        # === VEHICLE SELECTBOX (from dataset) ===
-        vehicle_options = [
-            "Luxury SUV",
-            "Luxury Car",
-            "Sports Car",
-            "SUV",
-            "Two-Door Car",
-            "Four-Door Car"
-        ]
-        vehicle = st.selectbox("Vehicle Class", options=vehicle_options)
-
-    submitted = st.form_submit_button("SCORE LEAD")
-
-# === AUTO-FILL 90%+ LEAD BUTTON (FIXED: uses st.rerun()) ===
-if st.button("Load 90%+ High-Conversion Lead", type="primary"):
-    # Store values in session state
-    st.session_state.clv = HIGH_IMPACT["Customer Lifetime Value"]
-    st.session_state.premium = HIGH_IMPACT["Monthly Premium Auto"]
-    st.session_state.months = HIGH_IMPACT["Months_Since_Start"]
-    st.session_state.channel = HIGH_IMPACT["Sales Channel"]
-    st.session_state.offer = HIGH_IMPACT["Renew Offer Type"]
-    st.session_state.education = HIGH_IMPACT["Education"]
-    st.session_state.employment = HIGH_IMPACT["EmploymentStatus"]
-    st.session_state.gender = HIGH_IMPACT["Gender"]
-    st.session_state.location = HIGH_IMPACT["Location Code"]
-    st.session_state.coverage = HIGH_IMPACT["Coverage"]
-    st.session_state.vehicle = HIGH_IMPACT["Vehicle Class"]
-    st.rerun()  # ← FIXED: st.rerun() instead of experimental_rerun
-
-# === Auto-load from session state (after button) ===
-if 'clv' in st.session_state:
-    clv = st.session_state.clv
-    premium = st.session_state.premium
-    months = st.session_state.months
-    channel = st.session_state.channel
-    offer = st.session_state.offer
-    education = st.session_state.education
-    employment = st.session_state.employment
-    gender = st.session_state.gender
-    location = st.session_state.location
-    coverage = st.session_state.coverage
-    vehicle = st.session_state.vehicle
+with st.sidebar:
+    page = option_menu(
+        "KPI Dashboard",
+        ["Conversion Rate", "CLV Forecast", "CPA vs ROI",
+         "Propensity Scorer", "Export Report"],
+        icons=['bar-chart', 'graph-up', 'currency-dollar', 'robot', 'file-earmark-pdf']
+    )
 
 # ----------------------------------------------------------------------
-# Predict (only when form is submitted)
+# PAGE 1 – Conversion Rate by Channel (exact numbers from your article)
 # ----------------------------------------------------------------------
-if submitted:
-    with st.spinner("Scoring..."):
-        # ---- 1. numeric / engineered features -------------------------
+if page == "Conversion Rate":
+    st.title("Conversion Rate by Channel")
+    data = {
+        "Channel": ["Agent", "Web", "Branch", "Call Center"],
+        "Rate": [19.2, 11.8, 11.9, 10.9]
+    }
+    df = pd.DataFrame(data)
+    st.bar_chart(df.set_index("Channel"))
+    st.markdown("""
+    **Data-science boost** – Agent-led routing = **19.2 %**  
+    (vs. overall average **14.3 %** → **34 % lift**)
+    """)
+
+# ----------------------------------------------------------------------
+# PAGE 2 – CLV Forecast (simple linear proxy – you can replace later)
+# ----------------------------------------------------------------------
+elif page == "CLV Forecast":
+    st.title("Customer Lifetime Value Forecast")
+    clv = st.number_input("Customer Lifetime Value ($)", min_value=0.0, value=8000.0, step=100.0)
+    premium = st.number_input("Monthly Premium Auto ($)", min_value=0.0, value=100.0, step=10.0)
+    months = st.number_input("Months Since Policy Inception", min_value=0, value=12, step=1)
+    if st.button("Forecast CLV"):
+        # Very simple model – replace with a real regressor later
+        forecast = clv + premium * months * 0.8
+        st.success(f"**Forecasted CLV: ${forecast:,.0f}**")
+
+# ----------------------------------------------------------------------
+# PAGE 3 – CPA vs ROI Heatmap (static from article)
+# ----------------------------------------------------------------------
+elif page == "CPA vs ROI":
+    st.title("CPA vs ROI Heatmap")
+    st.image("https://i.imgur.com/5vXjK9P.png", caption="Agent = Green (high ROI), Call Center = Red (low ROI)")
+
+# ----------------------------------------------------------------------
+# PAGE 4 – Real-Time Propensity Scorer (your 92 % golden-lead scorer)
+# ----------------------------------------------------------------------
+elif page == "Propensity Scorer":
+    st.title("Real-Time Propensity-to-Buy Scorer")
+
+    # ----- High-impact auto-fill -----
+    HIGH_IMPACT = {
+        "Customer Lifetime Value": 15000,
+        "Monthly Premium Auto": 200,
+        "Months Since Policy Inception": 6,
+        "Sales Channel": "Agent",
+        "Renew Offer Type": "Offer2",
+        "Education": "Doctor",
+        "EmploymentStatus": "Retired",
+        "Gender": "F",
+        "Location Code": "Suburban",
+        "Coverage": "Premium",
+        "Vehicle Class": "Luxury SUV"
+    }
+
+    with st.form("lead_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            clv = st.number_input("Customer Lifetime Value ($)", min_value=0.0, value=8000.0, step=100.0)
+            premium = st.number_input("Monthly Premium Auto ($)", min_value=0.0, value=100.0, step=10.0)
+            months = st.number_input("Months Since Policy Inception", min_value=0, value=12, step=1)
+        with col2:
+            channel = st.selectbox("Sales Channel", options=encoders["Sales Channel"].classes_)
+            offer = st.selectbox("Renew Offer Type", options=encoders["Renew Offer Type"].classes_)
+            education = st.selectbox("Education", options=encoders["Education"].classes_)
+
+        col3, col4 = st.columns(2)
+        with col3:
+            employment = st.selectbox("Employment Status", options=encoders["EmploymentStatus"].classes_)
+            gender = st.selectbox("Gender", options=encoders["Gender"].classes_)
+            location = st.selectbox("Location Code", options=encoders["Location Code"].classes_)
+        with col4:
+            coverage = st.selectbox("Coverage", ["Basic", "Extended", "Premium"])
+            vehicle_options = ["Luxury SUV", "Luxury Car", "Sports Car", "SUV", "Two-Door Car", "Four-Door Car"]
+            vehicle = st.selectbox("Vehicle Class", options=vehicle_options)
+
+        submitted = st.form_submit_button("SCORE LEAD")
+
+    # ----- Auto-fill 90 %+ button -----
+    if st.button("Load 90 %+ High-Conversion Lead", type="primary"):
+        for k, v in HIGH_IMPACT.items():
+            st.session_state[k] = v
+        st.rerun()
+
+    # Load from session state if present
+    for k, v in HIGH_IMPACT.items():
+        if k in st.session_state:
+            globals()[k.lower().replace(" ", "_")] = st.session_state[k]
+
+    if submitted:
+        # ----- Build feature vector -----
         data = {
             "Customer Lifetime Value": clv,
             "Monthly Premium Auto": premium,
-            "Months_Since_Start": months,
+            "Months Since Policy Inception": months,
             "Premium_Policy": 1 if coverage == "Premium" else 0,
             "Luxury_Vehicle": 1 if "Luxury" in vehicle else 0,
         }
 
-        # ---- 2. categorical encoding ----------------------------------
-        cat_mapping = {
+        cat_map = {
             "Sales Channel": channel,
             "Renew Offer Type": offer,
             "Education": education,
@@ -144,60 +139,60 @@ if submitted:
             "Location Code": location,
         }
 
-        encoded_debug = {}
-        for col, val in cat_mapping.items():
+        for col, val in cat_map.items():
             le = encoders[col]
             try:
-                encoded_val = le.transform([val])[0]
+                data[col] = le.transform([val])[0]
             except ValueError:
-                encoded_val = 0
-            data[col] = encoded_val
-            encoded_debug[col] = (val, encoded_val)
+                data[col] = 0
 
-        # ---- 3. final dataframe --------------------------------------
-        X = pd.DataFrame([data])[features]
+        X = pd.Datazmann([data])[features]
         prob = model.predict_proba(X)[0, 1]
 
-        # ---- 4. results ----------------------------------------------
+        # ----- Results -----
         st.success(f"**Propensity Score: {prob:.1%}**")
-        st.metric(
-            "Recommended Action",
-            "Route to Agent" if prob > 0.7 else "Web Funnel",
-        )
+        st.metric("Recommended Action", "Route to Agent" if prob > 0.70 else "Web Funnel")
 
-        # ---- 5. article-style message ---------------------------------
-        st.markdown("---")
-        if prob > 0.7:
-            msg = f"""
-            <div style='background-color:#e6f7e6;padding:15px;border-radius:10px;font-size:15px;line-height:1.6;'>
-            <strong>High-value lead: {prob:.1%} conversion probability</strong><br>
-            <strong>Recommended Action:</strong> <strong>Route to Agent</strong> — maximize lifetime value.
-            </div>
-            """
-        else:
-            msg = f"""
-            <div style='background-color:#f0f2f6;padding:15px;border-radius:10px;font-size:15px;line-height:1.6;'>
-            <strong>Only {prob:.1%} chance this lead will convert</strong> — too low for agent routing.<br>
-            <strong>Recommended Action:</strong> Send to <strong>Web Funnel</strong> (automated emails, retargeting).
-            </div>
-            """
-        st.markdown(msg, unsafe_allow_html=True)
-        st.markdown("---")
-
-        # ---- 6. optional debug expander -------------------------------
-        with st.expander("Debug – encoded values (remove in production)", expanded=False):
-            st.json(encoded_debug)
-
-        # ---- 7. SHAP waterfall ----------------------------------------
+        # ----- SHAP waterfall -----
         with st.spinner("Generating SHAP explanation…"):
-            try:
-                explainer = shap.Explainer(
-                    lambda x: model.predict_proba(x)[:, 1], X, feature_names=features
-                )
-                shap_values = explainer(X)
+            explainer = shap.Explainer(lambda x: model.predict_proba(x)[:, 1], X, feature_names=features)
+            shap_vals = explainer(X)
+            fig, ax = plt.subplots(figsize=(10, 6))
+            shap.plots.waterfall(shap_vals[0], max_display=12, show=False)
+            st.pyplot(fig)
 
-                fig, ax = plt.subplots(figsize=(10, 6))
-                shap.plots.waterfall(shap_values[0], max_display=12, show=False)
-                st.pyplot(fig)
-            except Exception as e:
-                st.info(f"SHAP plot skipped: {e}")
+# ----------------------------------------------------------------------
+# PAGE 5 – Export PDF (your full article embedded)
+# ----------------------------------------------------------------------
+elif page == "Export Report":
+    st.title("Export Marketing Report")
+    if st.button("Generate PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "Data-Driven Marketing KPIs", ln=1, align="C")
+        pdf.ln(10)
+        pdf.set_font("Arial", size=12)
+        txt = """
+        In an era where every ad dollar is scrutinized, four KPIs—Conversion Rate,
+        Customer Lifetime Value (CLV), Cost Per Acquisition (CPA), and Return on
+        Investment (ROI)—are the North Star for profitable growth. When powered by
+        data science, these metrics evolve from static reports into predictive
+        engines that allocate budget with surgical precision.
+
+        1. Conversion Rate – The Pulse of Campaign Effectiveness
+        ...
+        This analysis of 9,000+ insurance prospects reveals a 14.3 % overall
+        conversion rate, yet Agent-led sales hit 19.2 % while Call Centers
+        languish at 10.9 %.
+        """
+        pdf.multi_cell(0, 10, txt)
+        pdf.output("kpi_report.pdf")
+
+        with open("kpi_report.pdf", "rb") as f:
+            st.download_button(
+                label="Download PDF Report",
+                data=f,
+                file_name="Insurance_KPI_Report.pdf",
+                mime="application/pdf"
+            )
